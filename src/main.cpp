@@ -7,7 +7,7 @@ int main() {
     std::cout << "Enter server password: ";
     std::cin >> password;
 
-    Server server(6668, password);
+    Server server(6669, password);
     server.start();
     while (1){
         sleep(1); // CPU使用率を下げるために1秒待機

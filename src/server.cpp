@@ -149,6 +149,21 @@ void Server::handleClient(int client_fd) {
         std::string message;
         std::getline(iss, message);
         handlePrivmsgCommand(client_fd, target, message);
+    } else if (command == "KICK") {
+        std::string channel_name;
+        std::string target_nickname;
+        iss >> channel_name >> target_nickname;
+        handleKickCommand(client_fd, channel_name, target_nickname);
+    } else if (command == "MODE") {
+        std::string channel_name;
+        std::string mode;
+        iss >> channel_name >> mode;
+        handleModeCommand(client_fd, channel_name, mode);
+    } else if (command == "INVITE") {
+        std::string target_nickname;
+        std::string channel_name;
+        iss >> target_nickname >> channel_name;
+        handleInviteCommand(client_fd, target_nickname, channel_name);
     } else {
         std::string error_message = "Unknown command.\n";
         send(client_fd, error_message.c_str(), error_message.size(), 0);
@@ -169,20 +184,47 @@ void Server::handleUserCommand(int client_fd, const std::string &username) {
 
 void Server::handleJoinCommand(int client_fd, const std::string &channel_name) {
     if (_channels.find(channel_name) == _channels.end()) {
-        createChannel(channel_name);
+        createChannel(channel_name, client_fd);
+    } else if (_channels[channel_name].hasMode('i') && !_channels[channel_name].isInvitee(client_fd)) {
+        std::string error_message = "Cannot join channel (+i)\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
     }
     joinChannel(client_fd, channel_name);
 }
 
-void Server::createChannel(const std::string &channel_name) {
-    _channels[channel_name] = Channel(channel_name);
-    std::cout << "Channel created: " << channel_name << std::endl;
-}
 
-void Server::joinChannel(int client_fd, const std::string &channel_name) {
-    _channels[channel_name].addClient(client_fd);
-    std::string response = "Joined channel " + channel_name + "\n";
+void Server::handleInviteCommand(int client_fd, const std::string &target_nickname, const std::string &channel_name) {
+    if (_channels.find(channel_name) == _channels.end()) {
+        std::string error_message = "No such channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    if (!_channels[channel_name].isOperator(client_fd)) {
+        std::string error_message = "You are not an operator of channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    int target_fd = -1;
+    for (std::map<int, ClientInfo>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second.nickname == target_nickname) {
+            target_fd = it->first;
+            break;
+        }
+    }
+
+    if (target_fd == -1) {
+        std::string error_message = "No such user: " + target_nickname + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    _channels[channel_name].addInvitee(target_fd);
+    std::string response = "User " + target_nickname + " has been invited to channel " + channel_name + "\n";
     send(client_fd, response.c_str(), response.size(), 0);
+    send(target_fd, response.c_str(), response.size(), 0);
 }
 
 
@@ -190,8 +232,13 @@ void Server::handlePrivmsgCommand(int client_fd, const std::string &target, cons
     if (_channels.find(target) != _channels.end()) {
         // チャネルへのメッセージ
         const std::vector<int>& clients = _channels[target].getClients();
-        if (std::find(clients.begin(), clients.end(), client_fd) == clients.end()) {
+        if (_channels[target].hasMode('n') && std::find(clients.begin(), clients.end(), client_fd) == clients.end()) {
             std::string error_message = "You are not in channel: " + target + "\n";
+            send(client_fd, error_message.c_str(), error_message.size(), 0);
+            return;
+        }
+        if (_channels[target].hasMode('m') && !_channels[target].isOperator(client_fd)) {
+            std::string error_message = "Channel is moderated. Only operators can send messages.\n";
             send(client_fd, error_message.c_str(), error_message.size(), 0);
             return;
         }
@@ -222,9 +269,110 @@ void Server::handlePrivmsgCommand(int client_fd, const std::string &target, cons
     }
 }
 
+void Server::createChannel(const std::string &channel_name, int client_fd) {
+    _channels[channel_name] = Channel(channel_name);
+    _channels[channel_name].addOperator(client_fd); // チャネル作成者をオペレーターとして設定
+    std::cout << "Channel created: " << channel_name << std::endl;
+}
+
+void Server::joinChannel(int client_fd, const std::string &channel_name) {
+    _channels[channel_name].addClient(client_fd);
+    std::string response = "Joined channel " + channel_name + "\n";
+    send(client_fd, response.c_str(), response.size(), 0);
+}
+
+void Server::handleKickCommand(int client_fd, const std::string &channel_name, const std::string &target_nickname) {
+    if (_channels.find(channel_name) == _channels.end()) {
+        std::string error_message = "No such channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    if (!_channels[channel_name].isOperator(client_fd)) {
+        std::string error_message = "You are not an operator of channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    int target_fd = -1;
+    for (std::map<int, ClientInfo>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second.nickname == target_nickname) {
+            target_fd = it->first;
+            break;
+        }
+    }
+
+    if (target_fd == -1) {
+        std::string error_message = "No such user: " + target_nickname + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    _channels[channel_name].removeClient(target_fd);
+    std::string response = "User " + target_nickname + " has been kicked from channel " + channel_name + "\n";
+    send(client_fd, response.c_str(), response.size(), 0);
+    send(target_fd, response.c_str(), response.size(), 0);
+}
+
+void Server::handleModeCommand(int client_fd, const std::string &channel_name, const std::string &mode) {
+    if (_channels.find(channel_name) == _channels.end()) {
+        std::string error_message = "No such channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    if (!_channels[channel_name].isOperator(client_fd)) {
+        std::string error_message = "You are not an operator of channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    if (mode[0] == '+') {
+        _channels[channel_name].addMode(mode[1]);
+    } else if (mode[0] == '-') {
+        _channels[channel_name].removeMode(mode[1]);
+    }
+
+    std::string response = "Channel mode for " + channel_name + " has been changed to " + mode + "\n";
+    send(client_fd, response.c_str(), response.size(), 0);
+}
+
 void Server::removeClient(int client_fd) {
     close(client_fd);
     _client_fds.erase(std::remove(_client_fds.begin(), _client_fds.end(), client_fd), _client_fds.end());
     _clients.erase(client_fd);
     std::cout << "Client disconnected: " << client_fd << std::endl;
+}
+
+void Server::inviteUser(int client_fd, const std::string &channel_name, const std::string &target_nickname) {
+    if (_channels.find(channel_name) == _channels.end()) {
+        std::string error_message = "No such channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    if (!_channels[channel_name].isOperator(client_fd)) {
+        std::string error_message = "You are not an operator of channel: " + channel_name + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    int target_fd = -1;
+    for (std::map<int, ClientInfo>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second.nickname == target_nickname) {
+            target_fd = it->first;
+            break;
+        }
+    }
+
+    if (target_fd == -1) {
+        std::string error_message = "No such user: " + target_nickname + "\n";
+        send(client_fd, error_message.c_str(), error_message.size(), 0);
+        return;
+    }
+
+    _channels[channel_name].addInvitee(target_fd);
+    std::string response = "User " + target_nickname + " has been invited to channel " + channel_name + "\n";
+    send(client_fd, response.c_str(), response.size(), 0);
+    send(target_fd, response.c_str(), response.size(), 0);
 }

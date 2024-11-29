@@ -33,8 +33,12 @@ private:
     void handleUserCommand(int client_fd, const std::string &username); // ユーザー名設定コマンドを処理する
     void handleJoinCommand(int client_fd, const std::string &channel_name); // チャネル参加コマンドを処理する
     void handlePrivmsgCommand(int client_fd, const std::string &target, const std::string &message); // メッセージ送信コマンドを処理する
-    void createChannel(const std::string &channel_name); // 新しいチャネルを作成する
+    void handleKickCommand(int client_fd, const std::string &channel_name, const std::string &target_nickname); // ユーザーキックコマンドを処理する
+    void handleModeCommand(int client_fd, const std::string &channel_name, const std::string &mode); // チャネルモード変更コマンドを処理する
+    void handleInviteCommand(int client_fd, const std::string &target_nickname, const std::string &channel_name); // 招待コマンドを処理する
+    void createChannel(const std::string &channel_name, int client_fd); // 新しいチャネルを作成する
     void joinChannel(int client_fd, const std::string &channel_name); // クライアントをチャネルに参加させる
+    void inviteUser(int client_fd, const std::string &channel_name, const std::string &target_nickname); // ユーザーをチャネルに招待する
 
 public:
     // コンストラクタとデストラクタ
