@@ -1,7 +1,7 @@
 NAME = ircserv
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98
-SRCS = $(wildcard src/*.cpp src/commands/*.cpp)
+SRCS = ./src/main.cpp ./src/server.cpp ./src/channel.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 all: $(NAME)

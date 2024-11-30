@@ -8,12 +8,24 @@
 #include <netinet/in.h>
 #include "channel.hpp"
 
-// クライアント情報を管理する構造体
+
+
+/**
+ * @brief クライアントの情報を保持する構造体。
+ * 
+ * クライアントのニックネームとユーザー名を保持する構造体。
+ */
 struct ClientInfo {
     std::string nickname;
     std::string username;
 };
 
+
+/**
+ * @brief サーバークラス。
+ * 
+ * クライアントからの接続を受け入れ、メッセージの送受信を処理するサーバークラス。
+ */
 class Server {
 private:
     int _port;                     // サーバーがリスニングするポート番号
@@ -26,32 +38,29 @@ private:
     std::map<std::string, Channel> _channels; // チャネルを管理するデータ構造
 
     void acceptClient();           // 新しいクライアント接続を受け入れる
-    void handleClient(int client_fd); // クライアントからのデータを処理する
+    void handleClient(int client_fd); // クライアントからのデータを処理
     void removeClient(int client_fd); // クライアント接続を切断し管理から削除
     bool authenticateClient(int client_fd); // クライアントの認証を行う
-    void handleNickCommand(int client_fd, const std::string &nickname); // ニックネーム設定コマンドを処理する
-    void handleUserCommand(int client_fd, const std::string &username); // ユーザー名設定コマンドを処理する
-    void handleJoinCommand(int client_fd, const std::string &channel_name); // チャネル参加コマンドを処理する
-    void handlePrivmsgCommand(int client_fd, const std::string &target, const std::string &message); // メッセージ送信コマンドを処理する
-    void handleKickCommand(int client_fd, const std::string &channel_name, const std::string &target_nickname); // ユーザーキックコマンドを処理する
-    void handleModeCommand(int client_fd, const std::string &channel_name, const std::string &mode); // チャネルモード変更コマンドを処理する
-    void handleInviteCommand(int client_fd, const std::string &target_nickname, const std::string &channel_name); // 招待コマンドを処理する
-    void createChannel(const std::string &channel_name, int client_fd); // 新しいチャネルを作成する
+
+    // コマンドを処理するメソッド
+    void handleNickCommand(int client_fd, const std::string &nickname); 
+    void handleUserCommand(int client_fd, const std::string &username);
+    void handleJoinCommand(int client_fd, const std::string &channel_name);
+    void handlePrivmsgCommand(int client_fd, const std::string &target, const std::string &message);
+    void handleKickCommand(int client_fd, const std::string &channel_name, const std::string &target_nickname);
+    void handleModeCommand(int client_fd, const std::string &channel_name, const std::string &mode);
+    void handleInviteCommand(int client_fd, const std::string &target_nickname, const std::string &channel_name);
+
+    void createChannel(const std::string &channel_name, int client_fd); // 新しいチャネルを作成
     void joinChannel(int client_fd, const std::string &channel_name); // クライアントをチャネルに参加させる
-    void inviteUser(int client_fd, const std::string &channel_name, const std::string &target_nickname); // ユーザーをチャネルに招待する
+    void inviteUser(int client_fd, const std::string &channel_name, const std::string &target_nickname); // ユーザーをチャネルに招待
 
 public:
-    // コンストラクタとデストラクタ
     Server(int port, const std::string &password);
     ~Server();
 
-    // サーバーを起動する
     void start();
-
-    // サーバーのシャットダウン処理
     void shutdown();
-
-    // エラーメッセージを表示
     void logError(const std::string &message);
 };
 
