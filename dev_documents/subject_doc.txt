@@ -1,275 +1,170 @@
-<課題 `ft_irc`の要件>
+# IRCサーバーのテストケース
 
-ft_irc
-Internet Relay Chat
-Summary:
-This project is about creating your own IRC server.
-You wil l use an actual IRC client to connect to your server and test it.
-Internet is ruled by solid standards protocols that al low connected computers to interact
-with each other.
-It's always a good thing to know.
-Version: 8
-Contents
-I Intro duction
- 2
-I I General rules
- 3
-I I I Mandatory Part
- 4
-I I I .1 Requirements
- . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
-I I I .2 For MacOS only
- . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
-I I I .3 Test example
- . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
-IV Bonus part
- 7
-V Submission and p eer-evaluation
- 8
-1
-Chapter I
-Intro duction
-Internet Relay Chat
-or IRC is a text-based communication proto col on the Internet.
-It o˙ers real-time messaging that can b e either public or private. Users can exchange
-direct messages and join group channels.
-IRC clients connect to IRC servers in order to join channels. IRC servers are connected
-together to form a network.
-2
-Chapter I I
-General rules
-
-Your program should not crash in any circumstances (even when it runs out of
-memory), and should not quit unexp ectedly.
-If it happ ens, your pro ject will b e considered non-functional and your grade will b e
-0
-.
-
-You have to turn in a
-Makefile
-which will compile your source ˝les. It must not
-relink.
-
-Your
-Makefile
-must at least contain the rules:
-$(NAME)
-,
-all
-,
-clean
-,
-fclean
-and
-re
-.
-
-Compile your co de with
-c++
-and the ˛ags
--Wall -Wextra -Werror
-
-Your co de must comply with the
-C++ 98 standard
-. Then, it should still compile
-if you add the ˛ag
--std=c++98
-.
-
-Try to always develop using the most
-C++
-features you can (for example, cho ose
-<cstring>
-over
-<string.h>
-). You are allowed to use
-C
-functions, but always prefer
-their
-C++
-versions if p ossible.
-
-Any external library and
-Boost
-libraries are forbidden.
-3
-Chapter I I I
-Mandatory Part
-Program name
-ircserv
-Turn in ˝les
-Makefile, *.{h, hpp}, *.cpp, *.tpp, *.ipp,
-an optional configuration file
-Make˝le
-NAME, all, clean, fclean, re
-Arguments
-port: The listening port
-password: The connection password
-External functs.
-Everything in C++ 98.
-socket, close, setsockopt, getsockname,
-getprotobyname, gethostbyname, getaddrinfo,
-freeaddrinfo, bind, connect, listen, accept, htons,
-htonl, ntohs, ntohl, inet_addr, inet_ntoa, send,
-recv, signal, sigaction, lseek, fstat, fcntl, poll
-(or equivalent)
-Libft authorized
-n/a
-Description
-An IRC server in C++ 98
-You have to develop an I RC server in C++ 98.
-You
-mustn't
-develop a client.
-You
-mustn't
-handle server-to-server communication.
-Your executable will b e run as follows:
-./ircserv <port> <password>
-
-port
-: The p ort numb er on which your IRC server will b e listening to for incoming
-IRC connections.
-
-password
-: The connection password. It will b e needed by any IRC client that tries
-to connect to your server.
-Even if poll() is mentionned in the subject and the evaluation scale,
-you can use any equivalent such as select(), kqueue(), or epoll().
-4
-ft_irc Internet Relay Chat
-I I I.1 Re quireme nts
-
-The server must b e capable of handling multiple clients at the same time and never
-hang.
-
-Forking is not allowed. All I /O op erations must b e
-non-blo cking
-.
-
-Only
-1
-poll()
-(or equivalent) can b e us ed for handling all thes e op erations (read,
-write, but also listen, and so forth).
-Because you have to use non-blocking file descriptors, it is
-possible to use read/recv or write/send functions with no poll()
-(or equivalent), and your server wouldn't be blocking.
-But it would consume more system resources.
-Thus, if you try to read/recv or write/send in any file descriptor
-without using poll() (or equivalent), your grade will be 0.
-
-Several IRC clients exist. You have to cho ose one of them as a
-reference
-. Your
-reference client will b e used during the evaluation pro cess.
-
-Your reference client must b e able to connect to your server without encountering
-any error.
-
-Communication b etween client and server has to b e done via
-TCP/IP
-(v4 or v6).
-
-Using your reference client with your server must b e similar to using it with any
-o˚cial IRC server. However, you only have to implement the following features:
-
-You must b e able to authenticate, set a nickname, a username, join a channel,
-send and receive private messages using your reference client.
-
-All the messages sent from one client to a channel have to b e forwarded to
-every other client that joined the channel.
-
-You must have
-operators
-and regular users.
-
-Then, you have to implement the commands that are sp eci˝c to
-channel
-operators
-:
-*
-KICK - Eject a client from the channel
-*
-INVITE - Invite a client to a channel
-*
-TOPIC - Change or view the channel topic
-*
-MODE - Change the channel's mo de:
-·
-i: Set/remove Invite-only channel
-·
-t: Set/remove the restrictions of the TOPI C command to channel
-op erators
-·
-k: Set/remove the channel key (password)
-·
-o: Give/take channel op erator privilege
-5
-ft_irc Internet Relay Chat
-·
-l: Set/remove the user limit to channel
-
-Of course, you are exp ected to write a clean co de.
-I I I.2 For MacOS only
-Since MacOS doesn't implement write() the same way as other Unix
-OSes, you are allowed to use fcntl().
-You must use file descriptors in non-blocking mode in order to get a
-behavior similar to the one of other Unix OSes.
-However, you are allowed to use fcntl() only as follows:
-fcntl(fd, F_SETFL, O_NONBLOCK);
-Any other flag is forbidden.
-I I I.3 Test example
-Verify absolutely every p ossible error and issue (receiving partial data, low bandwidth,
-and so forth).
-To ensure that your server correctly pro cesses everything that you send to it, the
-following simple test using
-nc
-can b e done:
-\$> nc -C 127.0.0.1 6667
-com^Dman^Dd
-\$>
-Use
-ctrl+D
-to send the command in several parts: '
-com
-', then '
-man
-', then '
-d
-\n'.
-In order to pro cess a command, you have to ˝rst aggregate the received packets in
-order to rebuild it.
-6
-Chapter IV
-Bonus part
-Here are the extra features you can add to your IRC server so it lo oks even more like and
-actual IRC server:
-
-Handle ˝le transfer.
-
-A b ot.
-The bonus part will only be assessed if the mandatory part is
-PERFECT. Perfect means the mandatory part has been integrally done
-and works without malfunctioning. If you have not passed ALL the
-mandatory requirements, your bonus part will not be evaluated at all.
-7
-Chapter V
-Submission and p eer-evaluation
-Turn in your assignment in your
-Git
-rep ository as usual. Only the work inside your rep os-
-itory will b e evaluated during the defense. Don't hesitate to double check the names of
-your ˝les to ensure they are correct.
-You are encouraged to create test programs for your pro ject even though they
-won't
-b e submitted and won't b e graded
-. Those tests could b e es p ecially useful to test
-your server during defense, but als o your p eer's if you have to evaluate another
-ft_irc
-one day. Indeed, you are free to use whatever tests you need during the evaluation pro cess.
-Your reference client will be used during the evaluation process.
-16D85ACC441674FBA2DF65190663F432222F81AA0248081A7C1C1823F7A96F0B74495
-15056E97427E5B22F07132659EC8D88B574BD62C94BB654D5835AAD889B014E078705
-709F6E02
-8
+## 基本チェック (Basic checks)
+
+1. **コンパイルとMakefile**
+   ```bash
+   make clean
+   make
+   ls -la ircserv # 確認
+   ```
+
+2. **単一poll()/select()確認**
+   ```bash
+   grep -r "poll\|select\|epoll\|kqueue" src/ 
+   # 結果が1つだけの場所を示すはず
+   ```
+
+3. **非ブロッキングI/O設定の確認**
+   ```bash
+   grep -r "fcntl" src/
+   # 各fcntlがO_NONBLOCKの設定のみか確認
+   ```
+
+4. **poll()前のI/O操作がないか確認**
+   ```bash
+   # ソースコードを確認し、accept/recv/sendの前に必ずselect/pollが呼ばれているか
+   # errno == EAGAINによる再読み取りがないか確認
+   ```
+
+## ネットワーキング (Networking)
+
+1. **サーバー起動とリスニング**
+   ```bash
+   ./ircserv 6667 testpass
+   # 別ターミナルで
+   netstat -tuln | grep 6667
+   # 0.0.0.0:6667 と表示されるはず
+   ```
+
+2. **基本接続テスト**
+   ```bash
+   nc localhost 6667
+   # パスワード入力後:
+   NICK test1
+   USER test1 * * :Test User
+   JOIN #test
+   PRIVMSG #test :Hello world
+   ```
+
+3. **複数クライアント同時接続**
+   ```
+   # 3つの異なるターミナルでncを実行し同時に操作
+   # 全てに正しく応答があるか確認
+   ```
+
+4. **リファレンスIRCクライアントテスト**
+   ```
+   # チームが使用するIRCクライアントで接続し
+   # 基本操作（認証、ニックネーム設定、チャンネル参加）ができるか確認
+   ```
+
+## ネットワーク特殊ケース (Networking specials)
+
+1. **部分コマンド送信テスト**
+   ```bash
+   nc localhost 6667
+   # パスワード認証後:
+   com^D  # Ctrl+D で送信を区切る
+   man^D
+   d^D
+   ```
+
+2. **クライアント強制終了テスト**
+   ```bash
+   # 複数クライアント接続中に、1つのターミナルをkill
+   # 他のクライアントが引き続き動作するか確認
+   ```
+
+3. **部分送信中の切断テスト**
+   ```bash
+   nc localhost 6667
+   # パスワード認証後:
+   PRIVMSG #test :This is a lo^C  # 途中でCtrl+C
+   # 他のクライアントが正常に動作するか確認
+   ```
+
+4. **クライアント一時停止とフラッド**
+   ```bash
+   # クライアント1をCtrl+Zで一時停止
+   # クライアント2から多数のメッセージを連続送信
+   # サーバーがハングしないことを確認
+   # クライアント1をfgで再開し、滞留メッセージが処理されるか確認
+   ```
+
+## クライアントコマンド基本 (Client Commands basic)
+
+1. **認証とチャンネル操作**
+   ```
+   # 前述のテストで実施済み
+   ```
+
+2. **PRIVMSG詳細テスト**
+   ```bash
+   # ユーザー間プライベートメッセージ
+   PRIVMSG test2 :Hello, this is a private message
+   
+   # チャンネルメッセージ
+   PRIVMSG #test :Channel broadcast test
+   
+   # 特殊文字含むメッセージ
+   PRIVMSG #test :Test with special chars: !@#$%^&*()_+-=[]{}|;':",./<>?
+   ```
+
+## チャンネルオペレータコマンド (Client Commands channel operator)
+
+1. **一般ユーザー制限テスト**
+   ```bash
+   # 非オペレータでオペレータコマンドを試行
+   KICK #test test2
+   MODE #test +i
+   TOPIC #test :Unauthorized topic
+   # すべて拒否されるはず
+   ```
+
+2. **オペレータコマンドテスト**
+   ```bash
+   # チャンネル作成者でテスト
+   KICK #test test2 :Testing kick command
+   INVITE test2 #test
+   TOPIC #test :New channel topic
+   ```
+
+3. **MODEコマンドテスト**
+   ```bash
+   # 各モードを設定・解除してテスト
+   MODE #test +i  # 招待制に変更
+   # 招待なしで参加できないことを確認
+   
+   MODE #test +t  # トピック制限
+   # 一般ユーザーがトピック変更できないことを確認
+   
+   MODE #test +k password  # パスワード設定
+   # パスワードなしで参加できないことを確認
+   
+   MODE #test +o test2  # オペレータ権限付与
+   # test2がオペレータ機能を使えることを確認
+   
+   MODE #test +l 5  # ユーザー数制限
+   # 6人目が参加できないことを確認
+   ```
+
+## 問題発生時の追加確認
+
+1. **メモリリーク確認**
+   ```bash
+   valgrind --leak-check=full ./ircserv 6667 testpass
+   # メモリリークがないかチェック
+   ```
+
+2. **エッジケース対応確認**
+   ```bash
+   # 存在しないコマンドを送信
+   NOTACOMMAND
+   
+   # 存在しないユーザー・チャンネルへのメッセージ
+   PRIVMSG #nonexistent :Test
+   PRIVMSG nonuser :Test
+   ```
+
+これらのテストケースを実行することで、IRCサーバーが課題要件に沿って正しく動作するか検証できます。

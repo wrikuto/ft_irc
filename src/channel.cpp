@@ -1,9 +1,11 @@
 #include "../include/channel.hpp"
 #include <algorithm>
 
-Channel::Channel() : _name("") {}
+// コンストラクタでトピックを初期化
+Channel::Channel() : _name(""), _topic("") {}
 
-Channel::Channel(const std::string &name): _name(name) {}
+Channel::Channel(const std::string &name)
+    : _name(name), _topic("") {}
 
 Channel::~Channel() {}
 
@@ -11,9 +13,18 @@ const std::string& Channel::getName() const {
     return _name;
 }
 
+// 追加したメソッドの定義
+const std::string& Channel::getTopic() const {
+    return _topic;
+}
+
+void Channel::setTopic(const std::string &topic) {
+    _topic = topic;
+}
+
 void Channel::addClient(int client_fd) {
     _client_fds.push_back(client_fd);
-    _invitees.erase(client_fd); // 参加後は招待リストから削除
+    _invitees.erase(client_fd);
 }
 
 void Channel::removeClient(int client_fd) {
@@ -54,4 +65,24 @@ void Channel::addInvitee(int client_fd) {
 
 bool Channel::isInvitee(int client_fd) const {
     return _invitees.find(client_fd) != _invitees.end();
+}
+
+
+void Channel::setPassword(const std::string &password) {
+    _password = password;
+}
+
+
+const std::string& Channel::getPassword() const {
+    return _password;
+}
+
+
+bool Channel::checkPassword(const std::string &password) const {
+    // パスワードが設定されていない場合は常にtrue
+    if (_password.empty()) {
+        return true;
+    }
+    // パスワードが一致するかチェック
+    return password == _password;
 }
