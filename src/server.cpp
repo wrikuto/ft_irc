@@ -352,21 +352,33 @@ void Server::handleJoinCommand(int client_fd, const std::string &channel_name, c
     if (_channels.find(channel_name) == _channels.end()) {
         createChannel(channel_name, client_fd);
     } else {
-        if (_channels[channel_name].hasMode('k')) {
-            // std::cout << "DEBUG: Channel has +k mode, stored password='" << _channels[channel_name].getPassword() << "'" << std::endl;
+        // +iモードのチェック - 既存
+        if (_channels[channel_name].hasMode('i') && 
+            !_channels[channel_name].isInvitee(client_fd)) {
+            std::string error_message = "Cannot join channel (+i)\n";
+            send(client_fd, error_message.c_str(), error_message.size(), 0);
+            return;
         }
         
-        // +kモードのチェック
+        // +kモードのチェック - 既存
         if (_channels[channel_name].hasMode('k') && 
             !_channels[channel_name].checkPassword(password)) {
             std::string error_message = "Cannot join channel (wrong password)\n";
             send(client_fd, error_message.c_str(), error_message.size(), 0);
             return;
         }
+        
+        // +lモードのチェック - 追加
+        if (_channels[channel_name].hasMode('l') && 
+            _channels[channel_name].isUserLimitReached()) {
+            std::string error_message = "Cannot join channel (+l): user limit reached\n";
+            send(client_fd, error_message.c_str(), error_message.size(), 0);
+            return;
+        }
     }
-    
     joinChannel(client_fd, channel_name);
 }
+
 /**
  * @brief PRIVMSGコマンドの処理。ターゲットがチャネルかユーザーで分岐。
  */
@@ -407,7 +419,7 @@ void Server::handlePrivmsgCommand(int client_fd,
             }
         }
         if (target_fd == -1) {
-            std::string error_message = "No such user: " + target + "\n";
+            std::string error_message = "No such user or channel: " + target + "\n";
             send(client_fd, error_message.c_str(), error_message.size(), 0);
             return;
         }
@@ -441,7 +453,7 @@ void Server::handleInviteCommand(int client_fd,
         }
     }
     if (target_fd == -1) {
-        std::string error_message = "No such user: " + target_nickname + "\n";
+        std::string error_message = "No such user or channel: " + target_nickname + "\n";
         send(client_fd, error_message.c_str(), error_message.size(), 0);
         return;
     }
@@ -495,7 +507,7 @@ void Server::handleKickCommand(int client_fd,
         }
     }
     if (target_fd == -1) {
-        std::string error_message = "No such user: " + target_nickname + "\n";
+        std::string error_message = "No such user or channel: " + target_nickname + "\n";
         send(client_fd, error_message.c_str(), error_message.size(), 0);
         return;
     }
@@ -510,9 +522,9 @@ void Server::handleKickCommand(int client_fd,
  * @brief MODEコマンドの処理。チャンネルモードを追加・削除する。
  */
 void Server::handleModeCommand(int client_fd,
-                              const std::string &channel_name,
-                              const std::string &mode,
-                              const std::string &parameter) {
+                                const std::string &channel_name,
+                                const std::string &mode,
+                                const std::string &parameter) {
     if (_channels.find(channel_name) == _channels.end()) {
         std::string error_message = "No such channel: " + channel_name + "\n";
         send(client_fd, error_message.c_str(), error_message.size(), 0);
@@ -538,6 +550,71 @@ void Server::handleModeCommand(int client_fd,
                 _channels[channel_name].addMode(mode[1]);
                 _channels[channel_name].setPassword(parameter);
                 std::cout << "DEBUG: Set password for " << channel_name << ": '" << parameter << "'" << std::endl;
+            } 
+            // +lモードの場合、数値パラメータが必須
+            else if (mode[1] == 'l') {
+                if (parameter.empty()) {
+                    // ユーザー数上限が指定されていない場合はエラー
+                    std::string error_message = "MODE +l requires a numeric parameter\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return; // モード設定せずに終了
+                }
+
+                // パラメータが数値かチェック
+                int limit = 0;
+                try {
+                    limit = std::atoi(parameter.c_str());
+                } catch (std::exception &e) {
+                    std::string error_message = "MODE +l requires a valid numeric parameter\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+
+                // 正の値かチェック
+                if (limit <= 0) {
+                    std::string error_message = "User limit must be a positive number\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                // 上限を設定
+                _channels[channel_name].addMode(mode[1]);
+                _channels[channel_name].setUserLimit(limit);
+                std::cout << "DEBUG: Set user limit for " << channel_name << " to " << limit << std::endl;
+            } 
+            else if (mode[1] == 'o') {
+                if (parameter.empty()) {
+                    std::string error_message = "MODE +o requires a nickname parameter\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                
+                // 指定されたユーザーが存在するか確認
+                int target_fd = -1;
+                for (std::map<int, ClientInfo>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+                    if (it->second.nickname == parameter) {
+                        target_fd = it->first;
+                        break;
+                    }
+                }
+                
+                if (target_fd == -1) {
+                    std::string error_message = "No such user or channel: " + parameter + "\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                
+                // ユーザーがチャンネルのメンバーか確認
+                const std::vector<int>& clients = _channels[channel_name].getClients();
+                if (std::find(clients.begin(), clients.end(), target_fd) == clients.end()) {
+                    std::string error_message = "User " + parameter + " is not in channel " + channel_name + "\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                
+                // オペレータ権限を付与
+                _channels[channel_name].addOperator(target_fd);
+                _channels[channel_name].addMode(mode[1]);  // モードは必要に応じて
+                std::cout << "DEBUG: Set operator " << parameter << " for " << channel_name << std::endl;
             } else {
                 // その他のモードは通常通り設定
                 _channels[channel_name].addMode(mode[1]);
@@ -548,9 +625,41 @@ void Server::handleModeCommand(int client_fd,
             if (mode[1] == 'k') {
                 _channels[channel_name].setPassword("");
             }
+            // -lモードの場合はユーザー数上限をクリア
+            else if (mode[1] == 'l') {
+                _channels[channel_name].setUserLimit(0); // 0は無制限
+            }
+            else if (mode[1] == 'o') {
+                if (parameter.empty()) {
+                    std::string error_message = "MODE -o requires a nickname parameter\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                
+                int target_fd = -1;
+                for (std::map<int, ClientInfo>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+                    if (it->second.nickname == parameter) {
+                        target_fd = it->first;
+                        break;
+                    }
+                }
+                
+                if (target_fd == -1) {
+                    std::string error_message = "No such user or channel: " + parameter + "\n";
+                    send(client_fd, error_message.c_str(), error_message.size(), 0);
+                    return;
+                }
+                
+                // オペレータ権限を剥奪
+                _channels[channel_name].removeOperator(target_fd);
+                _channels[channel_name].removeMode(mode[1]);  // モードは必要に応じて
+            }
+            else {
+                _channels[channel_name].removeMode(mode[1]);
+            }
         }
     }
-    
+
     std::string response = "Channel mode for " + channel_name + " changed to " + mode + "\n";
     send(client_fd, response.c_str(), response.size(), 0);
 }
@@ -624,7 +733,7 @@ void Server::inviteUser(int client_fd,
         }
     }
     if (target_fd == -1) {
-        std::string error_message = "No such user: " + target_nickname + "\n";
+        std::string error_message = "No such user or channel: " + target_nickname + "\n";
         send(client_fd, error_message.c_str(), error_message.size(), 0);
         return;
     }
@@ -634,3 +743,4 @@ void Server::inviteUser(int client_fd,
     send(client_fd, response.c_str(), response.size(), 0);
     send(target_fd, response.c_str(), response.size(), 0);
 }
+

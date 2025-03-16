@@ -14,6 +14,7 @@ private:
     std::set<char> _modes;
     std::set<int> _invitees;
     std::string _password;  // チャンネルのパスワード
+    int _user_limit;       // ユーザー数の上限 (+l モード用)
 
 public:
     Channel();
@@ -42,6 +43,11 @@ public:
     void setPassword(const std::string &password);
     const std::string& getPassword() const;
     bool checkPassword(const std::string &password) const;
+
+    // ユーザー数上限関連メソッド
+    void setUserLimit(int limit);
+    int getUserLimit() const;
+    bool isUserLimitReached() const;  // ユーザー数が上限に達しているかチェック
 };
 
 #endif // CHANNEL_HPP

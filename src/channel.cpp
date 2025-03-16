@@ -2,10 +2,10 @@
 #include <algorithm>
 
 // コンストラクタでトピックを初期化
-Channel::Channel() : _name(""), _topic("") {}
+Channel::Channel() : _name(""), _topic(""), _user_limit(0) {}
 
 Channel::Channel(const std::string &name)
-    : _name(name), _topic("") {}
+    : _name(name), _topic(""), _user_limit(0) {}
 
 Channel::~Channel() {}
 
@@ -85,4 +85,22 @@ bool Channel::checkPassword(const std::string &password) const {
     }
     // パスワードが一致するかチェック
     return password == _password;
+}
+
+
+void Channel::setUserLimit(int limit) {
+    _user_limit = limit;
+}
+
+int Channel::getUserLimit() const {
+    return _user_limit;
+}
+
+bool Channel::isUserLimitReached() const {
+    // ユーザー制限が0の場合は無制限
+    if (_user_limit <= 0) {
+        return false;
+    }
+    // 現在のユーザー数が制限以上なら、制限に達している
+    return static_cast<int>(_client_fds.size()) >= _user_limit;
 }
