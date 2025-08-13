@@ -237,7 +237,6 @@ void Server::handleClient(int client_fd) {
     int valread = recv(client_fd, tempBuf, sizeof(tempBuf), 0);
     
     if (valread < 0) {
-        // EAGAIN/EWOULDBLOCKはエラーではなく、単にデータがまだ来ていないだけ
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
             return; // エラーメッセージ表示なし
         }
@@ -246,8 +245,6 @@ void Server::handleClient(int client_fd) {
         return;
     }
     else if (valread == 0) {
-        // クライアントが正常に切断した場合（Ctrl+CやTelnetのquit等）
-        // エラーメッセージなし - removeClientの中の表示だけにする
         removeClient(client_fd);
         return;
     }
@@ -262,12 +259,9 @@ void Server::handleClient(int client_fd) {
         std::string line = bufRef.substr(0, pos);
         bufRef.erase(0, pos + 1);
 
-        // コマンドが空の場合スキップ
         if (line.empty()) {
             continue;
         }
-
-
         // コマンド文字列を解析
         std::istringstream iss(line);
         std::string command;
